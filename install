@@ -1,0 +1,65 @@
+#!/bin/sh
+
+LIBEVENT=libevent-1.4.12-stable.tar.gz
+MEMCACHED=memcached-1.4.3.tar.gz
+
+LIBEVENT_DIR=$(echo $LIBEVENT | awk -F'.tar' '{print $1}')
+MEMCACHED_DIR=$(echo $MEMCACHED | awk -F'.tar' '{print $1}')
+
+PREFIX=/usr
+
+source etc/functions
+
+Install_Libevent()
+{
+	ECHO "Install Libevent"
+	tar -xzmf 	src/$LIBEVENT 	
+	cd $LIBEVENT_DIR
+	./configure  --prefix=$PREFIX  > /dev/null 2>&1 || EXIT 
+	make  > /dev/null 2>&1 || EXIT 
+	make install  > /dev/null 2>&1 || EXIT 
+	cd ..
+	OHCE "Done"
+}
+
+
+Install_Memcached()
+{
+	ECHO "Install Memcached"
+	groupadd memcached  > /dev/null 2>&1
+	useradd  -g memcached memcached  > /dev/null 2>&1
+
+	tar -xzmf src/$MEMCACHED	
+	cd $MEMCACHED_DIR
+	patch memcached.h ../patch/fix-strict-aliasing.patch > /dev/null 2>&1 || EXIT
+	./configure --with-libevent=/usr  > /dev/null 2>&1 || EXIT
+	make  > /dev/null 2>&1 || EXIT
+	make install  > /dev/null 2>&1 || EXIT
+	cd ..
+
+	install bin/memcached /etc/init.d
+	ln -sf /etc/init.d/memcached  /usr/bin/rcmemcached
+	install etc/memcached.conf  /etc
+	chkconfig --add memcached  > /dev/null 2>&1
+	OHCE "Done"
+}
+
+Clean_Clean()
+{
+
+	rm -r $LIBEVENT_DIR
+	rm -r $MEMCACHED_DIR
+
+}
+
+print_line
+print_green "Start Install Memcached"
+print_line
+Install_Libevent
+Install_Memcached
+Clean_Clean
+print_line
+print_green "Memcached Install Succeed"
+print_line
+
+rc_exit
